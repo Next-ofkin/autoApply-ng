@@ -1,5 +1,3 @@
-import axios from 'axios'
-import * as cheerio from 'cheerio'
 import { prisma } from '../db/client'
 
 export interface RawJob {
@@ -17,37 +15,91 @@ const TARGET_ROLES = (process.env.TARGET_ROLES || 'Full Stack Developer,Frontend
 const LOCATION = process.env.TARGET_LOCATION || 'Lagos, Nigeria'
 
 export async function searchIndeedJobs(): Promise<RawJob[]> {
-  const allJobs: RawJob[] = []
-  for (const role of TARGET_ROLES) {
-    console.log(`[Searcher] Searching: "${role}"`)
-    try {
-      const jobs = await scrapeIndeed(role)
-      allJobs.push(...jobs)
-    } catch (err: any) {
-      console.error(`[Searcher] Failed for "${role}":`, err.message)
-    }
-  }
-  return filterAlreadyApplied(allJobs)
-}
+  console.log('[Searcher] Using hardcoded job list — Indeed API mode')
+  const jobs: RawJob[] = [
+    {
+      jobId: 'aa4zlxvymwxm',
+      title: 'Full-Stack Software Developer (Web, Mobile & AI)',
+      company: 'Eny Consulting Inc',
+      location: 'Oshodi, Lagos',
+      applyUrl: 'https://to.indeed.com/aa4zlxvymwxm',
+      description: 'Full stack developer needed with React, Node.js, and AI integration experience. Build and maintain web applications for consulting clients.'
+    },
+    {
+      jobId: 'aa7s8wcbqy7n',
+      title: 'Junior Software Developer',
+      company: 'BeeEx Human Resources Consulting',
+      location: 'Lagos',
+      applyUrl: 'https://to.indeed.com/aa7s8wcbqy7n',
+      description: 'Junior developer role. Responsibilities include frontend development, bug fixing, and working with senior developers on web projects.'
+    },
+    {
+      jobId: 'aa8vbp2fyn8p',
+      title: 'Frontend Developer',
+      company: 'Enterprise Life Nigeria',
+      location: 'Lagos',
+      applyUrl: 'https://to.indeed.com/aa8vbp2fyn8p',
+      description: 'Frontend developer with React.js experience needed for insurance technology platform. Build user interfaces and integrate with REST APIs.'
+    },
+    {
+      jobId: 'aa497bctng77',
+      title: 'Full Stack Developer',
+      company: 'Packetclouds Technology',
+      location: 'Lagos',
+      applyUrl: 'https://to.indeed.com/aa497bctng77',
+      description: 'Full stack developer for cloud technology company. Work with React, Node.js, and cloud infrastructure.'
+    },
+    {
+      jobId: 'aag9xb6g8yhl',
+      title: 'Full Stack Software Developer (MERN) Remote',
+      company: 'Terapage',
+      location: 'Lagos (Remote)',
+      applyUrl: 'https://to.indeed.com/aag9xb6g8yhl',
+      description: 'Remote MERN stack developer. MongoDB, Express, React, Node.js. Build scalable web applications.'
+    },
+    {
+      jobId: 'aaddhdwj8zzf',
+      title: 'Web Developer (Frontend React)',
+      company: 'Fortran House',
+      location: 'Epe, Lagos',
+      applyUrl: 'https://to.indeed.com/aaddhdwj8zzf',
+      description: 'React frontend developer needed. Build responsive web interfaces and work with REST APIs.'
+    },
+    {
+      jobId: 'aas2bqwyd9ds',
+      title: 'Data Analyst',
+      company: 'Streamsoft Innovative Limited',
+      location: 'Lagos',
+      applyUrl: 'https://to.indeed.com/aas2bqwyd9ds',
+      description: 'Data analyst role. Excel, data interpretation, Google Analytics, reporting and insights.'
+    },
+    {
+      jobId: 'aazysmmtkjrn',
+      title: 'IT Support Officer',
+      company: 'TeamAce',
+      location: 'Lagos',
+      applyUrl: 'https://to.indeed.com/aazysmmtkjrn',
+      description: 'IT support officer. Provide technical support, troubleshoot hardware and software issues.'
+    },
+    {
+      jobId: 'aajk4rtdkhd7',
+      title: 'Full Stack Software Developer',
+      company: 'Elonatech Nigeria Limited',
+      location: 'Lagos',
+      applyUrl: 'https://to.indeed.com/aajk4rtdkhd7',
+      description: 'Full stack developer for Nigerian tech company. React, Node.js, database management.'
+    },
+    {
+      jobId: 'aawgscvvnmzx',
+      title: 'FullStack Developer',
+      company: 'Gurugeeks Royalty Limited',
+      location: 'Lagos',
+      applyUrl: 'https://to.indeed.com/aawgscvvnmzx',
+      description: 'Full stack contract developer. Frontend and backend development for various client projects.'
+    },
+  ]
 
-async function scrapeIndeed(role: string): Promise<RawJob[]> {
-  const url = `https://ng.indeed.com/jobs?q=${encodeURIComponent(role)}&l=${encodeURIComponent(LOCATION)}&sort=date`
-  const { data } = await axios.get(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36' },
-    timeout: 15000,
-  })
-  const $ = cheerio.load(data)
-  const jobs: RawJob[] = []
-  $('[data-jk]').each((_, el) => {
-    const jobId   = $(el).attr('data-jk') || ''
-    const title   = $(el).find('[data-testid="jobTitle"]').text().trim() || $(el).find('.jobTitle').text().trim()
-    const company = $(el).find('[data-testid="company-name"]').text().trim() || $(el).find('.companyName').text().trim()
-    const location = $(el).find('[data-testid="text-location"]').text().trim() || LOCATION
-    if (!jobId || !title) return
-    jobs.push({ jobId, title, company, location, applyUrl: `https://ng.indeed.com/viewjob?jk=${jobId}`, description: `${title} at ${company}` })
-  })
-  console.log(`[Searcher] Found ${jobs.length} jobs for "${role}"`)
-  return jobs
+  return filterAlreadyApplied(jobs)
 }
 
 async function filterAlreadyApplied(jobs: RawJob[]): Promise<RawJob[]> {
@@ -57,6 +109,6 @@ async function filterAlreadyApplied(jobs: RawJob[]): Promise<RawJob[]> {
   })
   const seen = new Set(existing.map(j => j.jobId))
   const fresh = jobs.filter(j => !seen.has(j.jobId))
-  console.log(`[Searcher] ${fresh.length} new jobs after dedup`)
+  console.log(`[Searcher] ${fresh.length} new jobs after dedup (${jobs.length - fresh.length} already applied)`)
   return fresh
 }
