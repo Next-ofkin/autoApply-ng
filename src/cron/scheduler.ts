@@ -25,11 +25,26 @@ async function runPipeline(): Promise<void> {
     for (const raw of limited) {
       const db = await prisma.job.upsert({
         where: { jobId: raw.jobId },
-        create: { jobId: raw.jobId, title: raw.title, company: raw.company, location: raw.location, applyUrl: raw.applyUrl, description: raw.description, status: 'FOUND' },
+        create: {
+          jobId: raw.jobId,
+          title: raw.title,
+          company: raw.company,
+          location: raw.location,
+          applyUrl: raw.applyUrl,
+          description: raw.description,
+          status: 'FOUND',
+        },
         update: {},
       })
-      const tailorJob = await jobQueue.add(JOBS.TAILOR_CV, { dbJobId: db.id, jobId: raw.jobId, title: raw.title, company: raw.company, location: raw.location, description: raw.description, applyUrl: raw.applyUrl })
-      await jobQueue.add(JOBS.APPLY_JOB, { dbJobId: db.id, title: raw.title, company: raw.company, location: raw.location, applyUrl: raw.applyUrl }, { delay: 45000 })
+      await jobQueue.add(JOBS.TAILOR_CV, {
+        dbJobId: db.id,
+        jobId: raw.jobId,
+        title: raw.title,
+        company: raw.company,
+        location: raw.location,
+        description: raw.description,
+        applyUrl: raw.applyUrl,
+      })
     }
   } catch (err: any) {
     console.error('[Scheduler] Error:', err.message)

@@ -5,24 +5,41 @@ import { tailorCVForJob, saveTailoredOutput } from '../cv-tailor/tailor'
 import { generatePDF } from '../pdf-generator/generator'
 import { applyToJob } from '../playwright-bot/apply'
 import { sendApplicationEmail } from '../notifier/email'
-import { JOBS } from './queues'
+import { jobQueue, JOBS } from './queues'
 
 export function startWorker(): Worker {
   const worker = new Worker('job-pipeline', async (job: Job) => {
     console.log(`[Worker] Processing: ${job.name}`)
 
     if (job.name === JOBS.TAILOR_CV) {
-      const { dbJobId, jobId, title, company, description } = job.data
+      const { dbJobId, jobId, title, company, description, location, applyUrl } = job.data
       await prisma.job.update({ where: { id: dbJobId }, data: { status: 'TAILORING' } })
       const tailored = await tailorCVForJob(title, company, description)
       saveTailoredOutput(jobId, tailored)
       const pdfPath = await generatePDF(tailored.cv, jobId)
       await prisma.job.update({ where: { id: dbJobId }, data: { status: 'READY', tailoredCvPath: pdfPath } })
+
+      await jobQueue.add(JOBS.APPLY_JOB, {
+        dbJobId,
+        pdfPath,
+        coverLetter: tailored.coverLetter,
+        title,
+        company,
+        location,
+        applyUrl,
+      })
+
       return { pdfPath, coverLetter: tailored.coverLetter }
     }
 
     if (job.name === JOBS.APPLY_JOB) {
       const { dbJobId, pdfPath, coverLetter, title, company, location, applyUrl } = job.data
+
+      if (!pdfPath) {
+        console.error('[Worker] pdfPath is undefined — skipping apply')
+        return { success: false, error: 'pdfPath missing' }
+      }
+
       await prisma.job.update({ where: { id: dbJobId }, data: { status: 'APPLYING' } })
       const result = await applyToJob(applyUrl, pdfPath, coverLetter, title, company)
       await prisma.job.update({
