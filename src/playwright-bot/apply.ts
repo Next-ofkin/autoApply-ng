@@ -22,7 +22,8 @@ async function getBrowser(): Promise<Browser> {
 function loadCookies(): any[] {
   try {
     const raw = process.env.INDEED_COOKIES || '[]'
-    const cookies = JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    const cookies = Array.isArray(parsed) ? parsed : (parsed.value || [])
     return cookies.map((c: any) => ({
       name: c.name,
       value: c.value,
