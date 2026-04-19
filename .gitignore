@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+assets/tailored/
+assets/pdfs/
+*.log
+.DS_Store
