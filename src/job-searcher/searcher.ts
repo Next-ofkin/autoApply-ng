@@ -106,10 +106,11 @@ async function filterAlreadyApplied(jobs: RawJob[]): Promise<RawJob[]> {
   const existing = await prisma.job.findMany({
     where: {
       jobId: { in: jobs.map(j => j.jobId) },
-      status: 'APPLIED'
+      status: 'APPLIED',
     },
     select: { jobId: true },
-  })  const seen = new Set(existing.map(j => j.jobId))
+  })
+  const seen = new Set(existing.map(j => j.jobId))
   const fresh = jobs.filter(j => !seen.has(j.jobId))
   console.log(`[Searcher] ${fresh.length} new jobs after dedup (${jobs.length - fresh.length} already applied)`)
   return fresh
