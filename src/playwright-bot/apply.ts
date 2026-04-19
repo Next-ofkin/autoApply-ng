@@ -1,6 +1,5 @@
 import { chromium, Browser, Page } from 'playwright'
 import * as path from 'path'
-import * as fs from 'fs'
 
 export interface ApplyResult {
   success: boolean
@@ -68,18 +67,9 @@ export async function applyToJob(
     }
 
     await context.addCookies(cookies)
-    console.log(`[Playwright] Loaded ${cookies.length} cookies — skipping login`)
+    console.log(`[Playwright] Loaded ${cookies.length} cookies — proceeding to apply directly`)
 
     const page = await context.newPage()
-    await page.goto('https://ng.indeed.com', { waitUntil: 'domcontentloaded', timeout: 30000 })
-    await page.waitForTimeout(2000)
-
-    const isLoggedIn = await page.$('[data-testid="header-jobseeker-signin"], [aria-label="My Account"]')
-    if (!isLoggedIn) {
-      console.log('[Playwright] Warning: may not be logged in — continuing anyway')
-    } else {
-      console.log('[Playwright] Confirmed logged in via cookies')
-    }
 
     await page.goto(applyUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await page.waitForTimeout(2000)
