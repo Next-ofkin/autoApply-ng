@@ -1,4 +1,6 @@
 ﻿import axios from 'axios'
+import * as FormData from 'form-data'
+import * as fs from 'fs'
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || ''
@@ -14,7 +16,30 @@ async function sendMessage(text: string): Promise<void> {
     })
     console.log('[Telegram] Message sent successfully')
   } catch (err: any) {
-    console.error('[Telegram] Failed:', err.response?.data || err.message)
+    console.error('[Telegram] Message failed:', err.response?.data || err.message)
+  }
+}
+
+export async function sendPDF(pdfPath: string, caption: string): Promise<void> {
+  try {
+    if (!fs.existsSync(pdfPath)) {
+      console.error('[Telegram] PDF not found:', pdfPath)
+      return
+    }
+    const form = new FormData()
+    form.append('chat_id', CHAT_ID)
+    form.append('caption', caption)
+    form.append('document', fs.createReadStream(pdfPath), {
+      filename: 'tailored-cv.pdf',
+      contentType: 'application/pdf',
+    })
+    await axios.post(BASE_URL + '/sendDocument', form, {
+      headers: form.getHeaders(),
+      timeout: 30000,
+    })
+    console.log('[Telegram] PDF sent successfully')
+  } catch (err: any) {
+    console.error('[Telegram] PDF send failed:', err.response?.data || err.message)
   }
 }
 
@@ -34,7 +59,7 @@ export async function sendJobAlert(params: {
     + '<b>Platform:</b> ' + platform + '\n'
     + '<b>Posted:</b> ' + postedDate + '\n\n'
     + '<a href="' + applyUrl + '">Apply Here</a>\n\n'
-    + '<i>autoApply-ng Lagos Job Bot</i>'
+    + '<i>Tailored CV attached below</i>'
   await sendMessage(message)
 }
 
@@ -45,6 +70,6 @@ export async function sendDailySummary(stats: {
   const message = '<b>Daily Job Summary</b>\n\n'
     + '<b>New jobs found today:</b> ' + stats.found + '\n'
     + '<b>Platforms searched:</b> ' + stats.platforms.join(', ') + '\n\n'
-    + '<i>Check above messages for apply links</i>'
+    + '<i>Check above messages for apply links and CVs</i>'
   await sendMessage(message)
 }
