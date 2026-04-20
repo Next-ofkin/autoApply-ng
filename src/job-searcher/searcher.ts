@@ -25,7 +25,7 @@ export async function searchAllJobs(): Promise<RawJob[]> {
   const allJobs: RawJob[] = []
 
   for (const role of TARGET_ROLES) {
-    console.log(`[Searcher] Searching: "${role}"`)
+    console.log('[Searcher] Searching: "' + role + '"')
     const results = await Promise.allSettled([
       scrapeIndeed(role),
       scrapeJobberman(role),
@@ -39,14 +39,14 @@ export async function searchAllJobs(): Promise<RawJob[]> {
 
   const deduped = deduplicateJobs(allJobs)
   const fresh = await filterAlreadyNotified(deduped)
-  console.log(`[Searcher] ${allJobs.length} total → ${deduped.length} deduped → ${fresh.length} new`)
+  console.log('[Searcher] ' + allJobs.length + ' total → ' + deduped.length + ' deduped → ' + fresh.length + ' new')
   return fresh
 }
 
 function deduplicateJobs(jobs: RawJob[]): RawJob[] {
   const seen = new Set<string>()
   return jobs.filter(job => {
-    const key = `${job.title.toLowerCase().trim()}-${job.company.toLowerCase().trim()}`
+    const key = job.title.toLowerCase().trim() + '-' + job.company.toLowerCase().trim()
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -54,7 +54,7 @@ function deduplicateJobs(jobs: RawJob[]): RawJob[] {
 }
 
 async function scrapeIndeed(role: string): Promise<RawJob[]> {
-  const url = `https://ng.indeed.com/jobs?q=${encodeURIComponent(role)}&l=Lagos&sort=date&fromage=7`
+  const url = 'https://ng.indeed.com/jobs?q=' + encodeURIComponent(role) + '&l=Lagos&sort=date&fromage=7'
   const { data } = await axios.get(url, { headers: HEADERS, timeout: 15000 })
   const $ = cheerio.load(data)
   const jobs: RawJob[] = []
@@ -67,23 +67,23 @@ async function scrapeIndeed(role: string): Promise<RawJob[]> {
     const posted  = $(el).find('[data-testid="myJobsStateDate"]').text().trim() || 'Recently'
     if (!jk || !title) return
     jobs.push({
-      jobId: `indeed-${jk}`,
+      jobId: 'indeed-' + jk,
       title,
       company: company || 'Unknown',
       location,
-      applyUrl: `https://ng.indeed.com/viewjob?jk=${jk}`,
-      description: `${title} at ${company}`,
+      applyUrl: 'https://ng.indeed.com/viewjob?jk=' + jk,
+      description: title + ' at ' + company,
       platform: 'Indeed',
       postedDate: posted,
     })
   })
 
-  console.log(`[Indeed] ${jobs.length} jobs for "${role}"`)
+  console.log('[Indeed] ' + jobs.length + ' jobs for "' + role + '"')
   return jobs
 }
 
 async function scrapeJobberman(role: string): Promise<RawJob[]> {
-  const url = `https://www.jobberman.com/jobs?q=${encodeURIComponent(role)}&l=Lagos&date_posted=7d`
+  const url = 'https://www.jobberman.com/jobs?q=' + encodeURIComponent(role) + '&l=Lagos&date_posted=7d'
   const { data } = await axios.get(url, { headers: HEADERS, timeout: 15000 })
   const $ = cheerio.load(data)
   const jobs: RawJob[] = []
@@ -95,25 +95,25 @@ async function scrapeJobberman(role: string): Promise<RawJob[]> {
     const href    = $(el).find('a').first().attr('href') || ''
     const posted  = $(el).find('time, [class*="date"]').first().text().trim() || 'Recently'
     if (!title || !href) return
-    const applyUrl = href.startsWith('http') ? href : `https://www.jobberman.com${href}`
+    const applyUrl = href.startsWith('http') ? href : 'https://www.jobberman.com' + href
     jobs.push({
-      jobId: `jobberman-${Buffer.from(applyUrl).toString('base64').substring(0, 20)}`,
+      jobId: 'jobberman-' + Buffer.from(applyUrl).toString('base64').substring(0, 20),
       title,
       company: company || 'Unknown',
       location,
       applyUrl,
-      description: `${title} at ${company}`,
+      description: title + ' at ' + company,
       platform: 'Jobberman',
       postedDate: posted,
     })
   })
 
-  console.log(`[Jobberman] ${jobs.length} jobs for "${role}"`)
+  console.log('[Jobberman] ' + jobs.length + ' jobs for "' + role + '"')
   return jobs
 }
 
 async function scrapeMyJobMag(role: string): Promise<RawJob[]> {
-  const url = `https://www.myjobmag.com/jobs-in/lagos?keyword=${encodeURIComponent(role)}&date_posted=7`
+  const url = 'https://www.myjobmag.com/jobs-in/lagos?keyword=' + encodeURIComponent(role) + '&date_posted=7'
   const { data } = await axios.get(url, { headers: HEADERS, timeout: 15000 })
   const $ = cheerio.load(data)
   const jobs: RawJob[] = []
@@ -125,20 +125,20 @@ async function scrapeMyJobMag(role: string): Promise<RawJob[]> {
     const href    = $(el).find('a').first().attr('href') || ''
     const posted  = $(el).find('time, [class*="date"]').first().text().trim() || 'Recently'
     if (!title || !href) return
-    const applyUrl = href.startsWith('http') ? href : `https://www.myjobmag.com${href}`
+    const applyUrl = href.startsWith('http') ? href : 'https://www.myjobmag.com' + href
     jobs.push({
-      jobId: `myjobmag-${Buffer.from(applyUrl).toString('base64').substring(0, 20)}`,
+      jobId: 'myjobmag-' + Buffer.from(applyUrl).toString('base64').substring(0, 20),
       title,
       company: company || 'Unknown',
       location,
       applyUrl,
-      description: `${title} at ${company}`,
+      description: title + ' at ' + company,
       platform: 'MyJobMag',
       postedDate: posted,
     })
   })
 
-  console.log(`[MyJobMag] ${jobs.length} jobs for "${role}"`)
+  console.log('[MyJobMag] ' + jobs.length + ' jobs for "' + role + '"')
   return jobs
 }
 
