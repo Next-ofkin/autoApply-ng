@@ -1,4 +1,4 @@
-import cron from 'node-cron'
+﻿import cron from 'node-cron'
 import { searchAllJobs } from '../job-searcher/searcher'
 import { jobQueue, JOBS } from '../queue/queues'
 import { sendDailySummary } from '../notifier/telegram'
@@ -16,7 +16,7 @@ export function startScheduler(): void {
 
 async function runPipeline(): Promise<void> {
   const now = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })
-  console.log('\n[Scheduler] ===== RUN @ ' + now + ' =====')
+  console.log('[Scheduler] ===== RUN @ ' + now + ' ======')
   try {
     const jobs = await searchAllJobs()
     if (!jobs.length) {
