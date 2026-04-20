@@ -17,20 +17,18 @@ const TARGET_ROLES = (process.env.TARGET_ROLES || 'full-stack,frontend,react,nod
 
 export async function searchAllJobs(): Promise<RawJob[]> {
   const allJobs: RawJob[] = []
-
   const results = await Promise.allSettled([
     searchRemotive(),
     searchArbeitnow(),
     searchHimalayas(),
-    searchTheMuse(),
-    searchWeWorkRemotely(),
+    searchRemoteOK(),
+    searchWellfound(),
+    searchLinkedInRSS(),
   ])
-
   for (const r of results) {
     if (r.status === 'fulfilled') allJobs.push(...r.value)
     else console.error('[Searcher] Platform error:', r.reason?.message)
   }
-
   const deduped = deduplicateJobs(allJobs)
   const fresh = await filterAlreadyNotified(deduped)
   console.log('[Searcher] ' + allJobs.length + ' total, ' + deduped.length + ' deduped, ' + fresh.length + ' new')
@@ -40,7 +38,6 @@ export async function searchAllJobs(): Promise<RawJob[]> {
 async function searchRemotive(): Promise<RawJob[]> {
   const jobs: RawJob[] = []
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-
   for (const role of TARGET_ROLES) {
     try {
       const { data } = await axios.get('https://remotive.com/api/remote-jobs', {
@@ -65,7 +62,7 @@ async function searchRemotive(): Promise<RawJob[]> {
       console.error('[Remotive] Error for ' + role + ': ' + err.message)
     }
   }
-  console.log('[Remotive] ' + jobs.length + ' total jobs')
+  console.log('[Remotive] ' + jobs.length + ' jobs')
   return jobs
 }
 
@@ -98,7 +95,7 @@ async function searchArbeitnow(): Promise<RawJob[]> {
   } catch (err: any) {
     console.error('[Arbeitnow] Error: ' + err.message)
   }
-  console.log('[Arbeitnow] ' + jobs.length + ' relevant jobs')
+  console.log('[Arbeitnow] ' + jobs.length + ' jobs')
   return jobs
 }
 
@@ -134,70 +131,114 @@ async function searchHimalayas(): Promise<RawJob[]> {
   return jobs
 }
 
-async function searchTheMuse(): Promise<RawJob[]> {
+async function searchRemoteOK(): Promise<RawJob[]> {
   const jobs: RawJob[] = []
   try {
-    for (const role of TARGET_ROLES.slice(0, 3)) {
-      const { data } = await axios.get('https://www.themuse.com/api/public/jobs', {
-        params: { category: 'Engineering', level: 'Entry Level', page: 0 },
-        timeout: 15000,
-      })
-      if (!data.results) continue
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      for (const item of data.results) {
-        const postedAt = new Date(item.publication_date)
-        if (postedAt < oneWeekAgo) continue
-        const titleLower = (item.name || '').toLowerCase()
-        const isRelevant = TARGET_ROLES.some((r: string) => titleLower.includes(r.toLowerCase()))
-        if (!isRelevant) continue
-        jobs.push({
-          jobId: 'muse-' + item.id,
-          title: item.name || 'Unknown Role',
-          company: (item.company && item.company.name) || 'Unknown',
-          location: (item.locations && item.locations[0] && item.locations[0].name) || 'Remote',
-          applyUrl: item.refs && item.refs.landing_page ? item.refs.landing_page : '',
-          description: item.contents || '',
-          platform: 'The Muse',
-          postedDate: postedAt.toLocaleDateString('en-NG'),
-        })
-      }
-    }
-  } catch (err: any) {
-    console.error('[TheMuse] Error: ' + err.message)
-  }
-  console.log('[TheMuse] ' + jobs.length + ' jobs')
-  return jobs
-}
-
-async function searchWeWorkRemotely(): Promise<RawJob[]> {
-  const jobs: RawJob[] = []
-  try {
-    const { data } = await axios.get('https://weworkremotely.com/remote-jobs.json', {
+    const { data } = await axios.get('https://remoteok.com/api', {
+      headers: { 'User-Agent': 'autoApply-ng Job Bot' },
       timeout: 15000,
     })
     if (!Array.isArray(data)) return jobs
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     for (const item of data) {
-      const postedAt = new Date(item.created_at)
+      if (!item.id || !item.position) continue
+      const postedAt = new Date(item.date)
       if (postedAt < oneWeekAgo) continue
-      const titleLower = (item.title || '').toLowerCase()
-      const isRelevant = TARGET_ROLES.some((r: string) => titleLower.includes(r.toLowerCase()))
+      const titleLower = (item.position || '').toLowerCase()
+      const tagStr = (item.tags || []).join(' ').toLowerCase()
+      const isRelevant = TARGET_ROLES.some((r: string) =>
+        titleLower.includes(r.toLowerCase()) || tagStr.includes(r.toLowerCase())
+      )
       if (!isRelevant) continue
       jobs.push({
-        jobId: 'wwr-' + item.id,
-        title: item.title || 'Unknown Role',
+        jobId: 'remoteok-' + item.id,
+        title: item.position || 'Unknown Role',
         company: item.company || 'Unknown',
-        location: item.region || 'Remote / Worldwide',
-        applyUrl: item.url || '',
+        location: 'Remote / Worldwide',
+        applyUrl: item.apply_url || item.url || '',
         description: item.description || '',
-        platform: 'We Work Remotely',
+        platform: 'RemoteOK',
         postedDate: postedAt.toLocaleDateString('en-NG'),
       })
     }
   } catch (err: any) {
-    console.error('[WeWorkRemotely] Error: ' + err.message)
+    console.error('[RemoteOK] Error: ' + err.message)
   }
-  console.log('[WeWorkRemotely] ' + jobs.length + ' relevant jobs')
+  console.log('[RemoteOK] ' + jobs.length + ' jobs')
+  return jobs
+}
+
+async function searchWellfound(): Promise<RawJob[]> {
+  const jobs: RawJob[] = []
+  try {
+    for (const role of TARGET_ROLES.slice(0, 3)) {
+      const { data } = await axios.get('https://wellfound.com/jobs/api/jobs', {
+        params: { role: role, remote: true, page: 1 },
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        timeout: 15000,
+      })
+      if (!data.data || !data.data.jobs) continue
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      for (const item of data.data.jobs) {
+        const postedAt = new Date(item.created_at || item.updated_at)
+        if (postedAt < oneWeekAgo) continue
+        jobs.push({
+          jobId: 'wellfound-' + item.id,
+          title: item.title || 'Unknown Role',
+          company: (item.startup && item.startup.name) || 'Unknown Startup',
+          location: item.remote ? 'Remote / Worldwide' : (item.location || 'Unknown'),
+          applyUrl: 'https://wellfound.com/jobs/' + item.id,
+          description: item.description || '',
+          platform: 'Wellfound (AngelList)',
+          postedDate: postedAt.toLocaleDateString('en-NG'),
+        })
+      }
+    }
+  } catch (err: any) {
+    console.error('[Wellfound] Error: ' + err.message)
+  }
+  console.log('[Wellfound] ' + jobs.length + ' jobs')
+  return jobs
+}
+
+async function searchLinkedInRSS(): Promise<RawJob[]> {
+  const jobs: RawJob[] = []
+  try {
+    for (const role of TARGET_ROLES.slice(0, 3)) {
+      const encoded = encodeURIComponent(role)
+      const url = 'https://www.linkedin.com/jobs/search/?keywords=' + encoded + '&f_TPR=r604800&f_WT=2'
+      const { data } = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        timeout: 15000,
+      })
+      const cheerio = require('cheerio')
+      const $ = cheerio.load(data)
+      $('div.base-card').each((_: any, el: any) => {
+        const title = $(el).find('.base-search-card__title').text().trim()
+        const company = $(el).find('.base-search-card__subtitle').text().trim()
+        const location = $(el).find('.job-search-card__location').text().trim()
+        const href = $(el).find('a.base-card__full-link').attr('href') || ''
+        const jobId = href.split('-').pop() || ''
+        if (!title || !href) return
+        jobs.push({
+          jobId: 'linkedin-' + jobId,
+          title,
+          company: company || 'Unknown',
+          location: location || 'Remote',
+          applyUrl: href,
+          description: title + ' at ' + company,
+          platform: 'LinkedIn',
+          postedDate: 'This week',
+        })
+      })
+    }
+  } catch (err: any) {
+    console.error('[LinkedIn] Error: ' + err.message)
+  }
+  console.log('[LinkedIn] ' + jobs.length + ' jobs')
   return jobs
 }
 
