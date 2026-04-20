@@ -147,6 +147,6 @@ async function filterAlreadyNotified(jobs: RawJob[]): Promise<RawJob[]> {
     where: { jobId: { in: jobs.map(j => j.jobId) } },
     select: { jobId: true },
   })
-  const seen = new Set(existing.map(j => j.jobId))
-  return jobs.filter(j => !seen.has(j.jobId))
+  const seen = new Set(existing.map((j: any) => j.jobId))
+  return jobs.filter((j: RawJob) => !seen.has(j.jobId))
 }
