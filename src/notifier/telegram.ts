@@ -1,7 +1,8 @@
 ﻿import axios from 'axios'
-import * as FormData from 'form-data'
 import * as fs from 'fs'
+import * as path from 'path'
 
+const FormData = require('form-data')
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || ''
 const BASE_URL = 'https://api.telegram.org/bot' + BOT_TOKEN
