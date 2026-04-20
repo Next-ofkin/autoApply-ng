@@ -1,4 +1,4 @@
-﻿import puppeteer from 'puppeteer'
+﻿import { chromium } from 'playwright'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -26,31 +26,29 @@ export async function generatePDF(cvText: string, jobId: string): Promise<string
       html += '<p class="contact">' + escapeHtml(trimmed) + '</p>'
     } else if (trimmed.match(/^[A-Z][A-Z\s&]+$/) && trimmed.length < 40) {
       html += '<h2>' + escapeHtml(trimmed) + '</h2>'
-    } else if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+    } else if (trimmed.startsWith('*') || trimmed.startsWith('-') || trimmed.startsWith('•')) {
       html += '<p class="bullet">' + escapeHtml(trimmed) + '</p>'
     } else {
       html += '<p>' + escapeHtml(trimmed) + '</p>'
     }
   }
-
   html += '</body></html>'
 
-  const browser = await puppeteer.launch({
+  const browser = await chromium.launch({
     headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   })
 
   try {
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
+    await page.setContent(html, { waitUntil: 'networkidle' })
     await page.pdf({
       path: outputPath,
       format: 'A4',
       margin: { top: '20mm', right: '18mm', bottom: '20mm', left: '18mm' },
       printBackground: true,
     })
-    console.log('[PDF Generator] Generated PDF: ' + outputPath)
+    console.log('[PDF Generator] Generated: ' + outputPath)
     return outputPath
   } finally {
     await browser.close()
