@@ -74,7 +74,8 @@ export function startWorker(): Worker {
       console.log('[Worker] Run complete - Sent: ' + sent + ' | Skipped: ' + skipped)
       return { sent, skipped }
     }
-  }, { connection: redis, concurrency: 1 })
+  }, { connection: redis, concurrency: 1, stalledInterval: 300000, maxStalledCount: 3 })
+
   worker.on('completed', job => console.log('[Worker] Done: ' + job.name))
   worker.on('failed', (job, err) => console.error('[Worker] Failed: ' + (job && job.name) + ' - ' + err.message))
   return worker
