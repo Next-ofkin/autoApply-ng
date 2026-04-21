@@ -1,4 +1,4 @@
-﻿import { Worker, Job } from 'bullmq'
+import { Worker, Job } from 'bullmq'
 import { redis } from './redis'
 import { prisma } from '../db/client'
 import { sendJobAlert, sendPDF } from '../notifier/telegram'
@@ -51,11 +51,11 @@ export function startWorker(): Worker {
           })
 
           console.log('[Worker] Done: ' + raw.title + ' at ' + raw.company)
-          await new Promise(r => setTimeout(r, 4000))
+          await new Promise(r => setTimeout(r, 8000))
 
         } catch (err: any) {
           console.error('[Worker] Error for ' + raw.title + ': ' + err.message)
-          await new Promise(r => setTimeout(r, 4000))
+          await new Promise(r => setTimeout(r, 8000))
         }
       }
       return { notified: jobs.length }
