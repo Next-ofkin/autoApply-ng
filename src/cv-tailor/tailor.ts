@@ -1,4 +1,4 @@
-﻿import axios from 'axios'
+import axios from 'axios'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -73,7 +73,7 @@ export async function scoreJobMatch(jobTitle: string, company: string, jobDescri
     + 'CV:\n' + MASTER_CV + '\n\n'
     + 'JOB TITLE: ' + jobTitle + '\n'
     + 'COMPANY: ' + company + '\n'
-    + 'JOB DESCRIPTION: ' + jobDescription.substring(0, 800) + '\n\n'
+    + 'JOB DESCRIPTION: ' + jobDescription.substring(0, 400) + '\n\n'
     + 'Score the match from 0-100 based on:\n'
     + '- Required skills match (40 points)\n'
     + '- Experience level match (30 points)\n'
@@ -100,7 +100,7 @@ export async function tailorCVForJob(jobTitle: string, company: string, jobDescr
     + 'MASTER CV:\n' + MASTER_CV + '\n\n'
     + 'JOB TITLE: ' + jobTitle + '\n'
     + 'COMPANY: ' + company + '\n'
-    + 'JOB DESCRIPTION: ' + jobDescription.substring(0, 800) + '\n\n'
+    + 'JOB DESCRIPTION: ' + jobDescription.substring(0, 400) + '\n\n'
     + 'Rewrite the CV to emphasize the most relevant skills for this specific role.\n'
     + 'Also write a 200-word cover letter addressed to ' + company + '.\n\n'
     + 'Return ONLY valid JSON, no markdown:\n'
