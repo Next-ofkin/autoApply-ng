@@ -1,4 +1,4 @@
-﻿import axios from 'axios'
+import axios from 'axios'
 import { prisma } from '../db/client'
 
 export interface RawJob {
