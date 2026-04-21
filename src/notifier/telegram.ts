@@ -1,8 +1,7 @@
 ﻿import axios from 'axios'
 import * as fs from 'fs'
-import * as path from 'path'
-
 const FormData = require('form-data')
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || ''
 const BASE_URL = 'https://api.telegram.org/bot' + BOT_TOKEN
@@ -23,21 +22,12 @@ async function sendMessage(text: string): Promise<void> {
 
 export async function sendPDF(pdfPath: string, caption: string): Promise<void> {
   try {
-    if (!fs.existsSync(pdfPath)) {
-      console.error('[Telegram] PDF not found:', pdfPath)
-      return
-    }
+    if (!fs.existsSync(pdfPath)) { console.error('[Telegram] PDF not found:', pdfPath); return }
     const form = new FormData()
     form.append('chat_id', CHAT_ID)
     form.append('caption', caption)
-    form.append('document', fs.createReadStream(pdfPath), {
-      filename: 'tailored-cv.pdf',
-      contentType: 'application/pdf',
-    })
-    await axios.post(BASE_URL + '/sendDocument', form, {
-      headers: form.getHeaders(),
-      timeout: 30000,
-    })
+    form.append('document', fs.createReadStream(pdfPath), { filename: 'tailored-cv.pdf', contentType: 'application/pdf' })
+    await axios.post(BASE_URL + '/sendDocument', form, { headers: form.getHeaders(), timeout: 30000 })
     console.log('[Telegram] PDF sent successfully')
   } catch (err: any) {
     console.error('[Telegram] PDF send failed:', err.response?.data || err.message)
@@ -45,15 +35,15 @@ export async function sendPDF(pdfPath: string, caption: string): Promise<void> {
 }
 
 export async function sendJobAlert(params: {
-  jobTitle: string
-  company: string
-  location: string
-  platform: string
-  applyUrl: string
-  postedDate: string
+  jobTitle: string; company: string; location: string
+  platform: string; applyUrl: string; postedDate: string
+  matchScore?: number; matchReasons?: string
 }): Promise<void> {
-  const { jobTitle, company, location, platform, applyUrl, postedDate } = params
-  const message = '<b>New Job Found!</b>\n\n'
+  const { jobTitle, company, location, platform, applyUrl, postedDate, matchScore, matchReasons } = params
+  const label = matchScore && matchScore >= 90 ? 'EXCELLENT MATCH' : matchScore && matchScore >= 80 ? 'STRONG MATCH' : 'GOOD MATCH'
+  const message = '<b>New Job Match Found!</b>\n\n'
+    + (matchScore ? '<b>' + matchScore + '% - ' + label + '</b>\n' : '')
+    + (matchReasons ? '<i>' + matchReasons + '</i>\n\n' : '\n')
     + '<b>Role:</b> ' + jobTitle + '\n'
     + '<b>Company:</b> ' + company + '\n'
     + '<b>Location:</b> ' + location + '\n'
@@ -64,13 +54,10 @@ export async function sendJobAlert(params: {
   await sendMessage(message)
 }
 
-export async function sendDailySummary(stats: {
-  found: number
-  platforms: string[]
-}): Promise<void> {
+export async function sendDailySummary(stats: { found: number; platforms: string[] }): Promise<void> {
   const message = '<b>Daily Job Summary</b>\n\n'
-    + '<b>New jobs found today:</b> ' + stats.found + '\n'
-    + '<b>Platforms searched:</b> ' + stats.platforms.join(', ') + '\n\n'
-    + '<i>Check above messages for apply links and CVs</i>'
+    + '<b>Matched jobs today:</b> ' + stats.found + '\n'
+    + '<b>Platforms:</b> ' + stats.platforms.join(', ') + '\n\n'
+    + '<i>Only 72%+ matches sent</i>'
   await sendMessage(message)
 }
