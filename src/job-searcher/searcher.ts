@@ -22,7 +22,7 @@ export async function searchAllJobs(): Promise<RawJob[]> {
     searchArbeitnow(),
     searchHimalayas(),
     searchRemoteOK(),
-    searchJobicy()(),
+    searchJobicy(),
     searchLinkedInRSS(),
   ])
   for (const r of results) {
@@ -168,36 +168,36 @@ async function searchRemoteOK(): Promise<RawJob[]> {
   return jobs
 }
 
-async function searchJobicy()(): Promise<RawJob[]> {
+async function searchJobicy(): Promise<RawJob[]> {
   const jobs: RawJob[] = []
   try {
-    for (const role of TARGET_ROLES.slice(0, 3)) {
-      const { data } = await axios.get('https://wellfound.com/jobs/api/jobs', {
-        params: { role: role, remote: true, page: 1 },
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        timeout: 15000,
+    const { data } = await axios.get('https://jobicy.com/api/v2/remote-jobs', {
+      params: { count: 20, geo: 'worldwide', industry: 'engineering' },
+      timeout: 15000,
+    })
+    if (!data.jobs) return jobs
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    for (const item of data.jobs) {
+      const postedAt = new Date(item.jobPubDate)
+      if (postedAt < oneWeekAgo) continue
+      const titleLower = (item.jobTitle || '').toLowerCase()
+      const isRelevant = TARGET_ROLES.some((r: string) => titleLower.includes(r.toLowerCase()))
+      if (!isRelevant) continue
+      jobs.push({
+        jobId: 'jobicy-' + item.id,
+        title: item.jobTitle || 'Unknown Role',
+        company: item.companyName || 'Unknown',
+        location: item.jobGeo || 'Remote / Worldwide',
+        applyUrl: item.url || '',
+        description: item.jobExcerpt || '',
+        platform: 'Jobicy',
+        postedDate: postedAt.toLocaleDateString('en-NG'),
       })
-      if (!data.data || !data.data.jobs) continue
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      for (const item of data.data.jobs) {
-        const postedAt = new Date(item.created_at || item.updated_at)
-        if (postedAt < oneWeekAgo) continue
-        jobs.push({
-          jobId: 'wellfound-' + item.id,
-          title: item.title || 'Unknown Role',
-          company: (item.startup && item.startup.name) || 'Unknown Startup',
-          location: item.remote ? 'Remote / Worldwide' : (item.location || 'Unknown'),
-          applyUrl: 'https://wellfound.com/jobs/' + item.id,
-          description: item.description || '',
-          platform: 'Wellfound (AngelList)',
-          postedDate: postedAt.toLocaleDateString('en-NG'),
-        })
-      }
     }
   } catch (err: any) {
-    console.error('[Wellfound] Error: ' + err.message)
+    console.error('[Jobicy] Error: ' + err.message)
   }
-  console.log('[Wellfound] ' + jobs.length + ' jobs')
+  console.log('[Jobicy] ' + jobs.length + ' jobs')
   return jobs
 }
 
@@ -259,70 +259,4 @@ async function filterAlreadyNotified(jobs: RawJob[]): Promise<RawJob[]> {
   })
   const seen = new Set(existing.map((j: any) => j.jobId))
   return jobs.filter((j: RawJob) => !seen.has(j.jobId))
-}
-
-async function searchJobicy(): Promise<RawJob[]> {
-  const jobs: RawJob[] = []
-  try {
-    const { data } = await axios.get('https://jobicy.com/api/v2/remote-jobs', {
-      params: { count: 20, geo: 'worldwide', industry: 'engineering' },
-      timeout: 15000,
-    })
-    if (!data.jobs) return jobs
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    for (const item of data.jobs) {
-      const postedAt = new Date(item.jobPubDate)
-      if (postedAt < oneWeekAgo) continue
-      const titleLower = (item.jobTitle || '').toLowerCase()
-      const isRelevant = TARGET_ROLES.some((r: string) => titleLower.includes(r.toLowerCase()))
-      if (!isRelevant) continue
-      jobs.push({
-        jobId: 'jobicy-' + item.id,
-        title: item.jobTitle || 'Unknown Role',
-        company: item.companyName || 'Unknown',
-        location: item.jobGeo || 'Remote / Worldwide',
-        applyUrl: item.url || '',
-        description: item.jobExcerpt || '',
-        platform: 'Jobicy',
-        postedDate: postedAt.toLocaleDateString('en-NG'),
-      })
-    }
-  } catch (err: any) {
-    console.error('[Jobicy] Error: ' + err.message)
-  }
-  console.log('[Jobicy] ' + jobs.length + ' jobs')
-  return jobs
-}
-
-async function searchJobicy(): Promise<RawJob[]> {
-  const jobs: RawJob[] = []
-  try {
-    const { data } = await axios.get('https://jobicy.com/api/v2/remote-jobs', {
-      params: { count: 20, geo: 'worldwide', industry: 'engineering' },
-      timeout: 15000,
-    })
-    if (!data.jobs) return jobs
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    for (const item of data.jobs) {
-      const postedAt = new Date(item.jobPubDate)
-      if (postedAt < oneWeekAgo) continue
-      const titleLower = (item.jobTitle || '').toLowerCase()
-      const isRelevant = TARGET_ROLES.some((r: string) => titleLower.includes(r.toLowerCase()))
-      if (!isRelevant) continue
-      jobs.push({
-        jobId: 'jobicy-' + item.id,
-        title: item.jobTitle || 'Unknown Role',
-        company: item.companyName || 'Unknown',
-        location: item.jobGeo || 'Remote / Worldwide',
-        applyUrl: item.url || '',
-        description: item.jobExcerpt || '',
-        platform: 'Jobicy',
-        postedDate: postedAt.toLocaleDateString('en-NG'),
-      })
-    }
-  } catch (err: any) {
-    console.error('[Jobicy] Error: ' + err.message)
-  }
-  console.log('[Jobicy] ' + jobs.length + ' jobs')
-  return jobs
 }
