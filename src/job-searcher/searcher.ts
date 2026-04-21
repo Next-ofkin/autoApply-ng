@@ -1,4 +1,4 @@
-﻿import axios from 'axios'
+import axios from 'axios'
 import { prisma } from '../db/client'
 
 export interface RawJob {
@@ -172,7 +172,7 @@ async function searchJobicy(): Promise<RawJob[]> {
   const jobs: RawJob[] = []
   try {
     const { data } = await axios.get('https://jobicy.com/api/v2/remote-jobs', {
-      params: { count: 20, geo: 'worldwide', industry: 'engineering' },
+      params: { count: 20 },
       timeout: 15000,
     })
     if (!data.jobs) return jobs
