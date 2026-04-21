@@ -84,7 +84,7 @@ export async function scoreJobMatch(jobTitle: string, company: string, jobDescri
     + 'shouldApply must be true only if score >= 72'
   try {
     const text = await callGroq(prompt)
-    const cleaned = text.replace(/```json|```/g, '').trim()
+    const cleaned = text.replace(/```json|```/g, "").replace(/[\x00-\x1F\x7F]/g, " ").trim()
     const result = JSON.parse(cleaned)
     console.log('[CV Matcher] Score: ' + result.score + '% for ' + jobTitle)
     return result
@@ -107,7 +107,7 @@ export async function tailorCVForJob(jobTitle: string, company: string, jobDescr
     + '{"cv":"full tailored cv text here","coverLetter":"full cover letter here"}'
   try {
     const text = await callGroq(prompt)
-    const cleaned = text.replace(/```json|```/g, '').trim()
+    const cleaned = text.replace(/```json|```/g, "").replace(/[\x00-\x1F\x7F]/g, " ").trim()
     return JSON.parse(cleaned)
   } catch (err: any) {
     console.error('[CV Tailor] Error:', err.response?.data || err.message)
@@ -125,3 +125,4 @@ export function saveTailoredOutput(jobId: string, output: TailoredOutput) {
   fs.writeFileSync(path.join(dir, 'cover-letter.txt'), output.coverLetter)
   return { cvPath: path.join(dir, 'cv.txt'), coverLetterPath: path.join(dir, 'cover-letter.txt') }
 }
+

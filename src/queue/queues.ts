@@ -7,7 +7,7 @@ export const jobQueue = new Queue('job-pipeline', {
     attempts: 3,
     backoff: { type: 'exponential', delay: 5000 },
     removeOnComplete: 100,
-    removeOnFail: 50,
+    removeOnFail: 50, stalledInterval: 300000, maxStalledCount: 3,
   },
 })
 
