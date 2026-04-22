@@ -2,20 +2,29 @@
 import { redis } from './redis'
 import { prisma } from '../db/client'
 import { sendJobAlert, sendPDF } from '../notifier/telegram'
-import { scoreJobMatch, tailorCVForJob, saveTailoredOutput } from '../cv-tailor/tailor'
+import { tailorCVForJob, saveTailoredOutput } from '../cv-tailor/tailor'
+import { scoreJobLocally } from '../scorer/scorer'
 import { generatePDF } from '../pdf-generator/generator'
 import { JOBS } from './queues'
 
-const MIN_MATCH_SCORE = Number(process.env.MIN_MATCH_SCORE) || 72
+const MIN_MATCH_SCORE = Number(process.env.MIN_MATCH_SCORE) || 55
+const MAX_APPLICATIONS = Number(process.env.MAX_APPLICATIONS_PER_RUN) || 15
 
 export function startWorker(): Worker {
   const worker = new Worker('job-pipeline', async (job: Job) => {
     console.log('[Worker] Processing: ' + job.name)
+
     if (job.name === JOBS.SEARCH_JOBS) {
       const { jobs } = job.data
       let sent = 0
       let skipped = 0
+
       for (const raw of jobs) {
+        if (sent >= MAX_APPLICATIONS) {
+          console.log('[Worker] Max applications reached: ' + MAX_APPLICATIONS)
+          break
+        }
+
         try {
           await prisma.job.upsert({
             where: { jobId: raw.jobId },
@@ -30,24 +39,26 @@ export function startWorker(): Worker {
             },
             update: {},
           })
-          await new Promise(r => setTimeout(r, 3000))
-          const match = await scoreJobMatch(raw.title, raw.company, raw.description)
+
+          const match = await scoreJobLocally(raw.title, raw.description)
+
           if (!match.shouldApply || match.score < MIN_MATCH_SCORE) {
             console.log('[Worker] Skipped (' + match.score + '%): ' + raw.title)
             await prisma.job.update({
               where: { jobId: raw.jobId },
-              data: { status: 'SKIPPED', errorMessage: 'Match: ' + match.score + '%' },
+              data: { status: 'SKIPPED', errorMessage: 'Score: ' + match.score + '%' },
             })
             skipped++
-            await new Promise(r => setTimeout(r, 2000))
             continue
           }
+
           console.log('[Worker] Match ' + match.score + '% - Tailoring: ' + raw.title)
           await new Promise(r => setTimeout(r, 3000))
+
           const tailored = await tailorCVForJob(raw.title, raw.company, raw.description)
           saveTailoredOutput(raw.jobId, tailored)
           const pdfPath = await generatePDF(tailored.cv, raw.jobId)
-          const reasonsText = match.reasons.slice(0, 2).join(' | ')
+
           await sendJobAlert({
             jobTitle: raw.title,
             company: raw.company,
@@ -56,21 +67,26 @@ export function startWorker(): Worker {
             applyUrl: raw.applyUrl,
             postedDate: raw.postedDate || 'Recently',
             matchScore: match.score,
-            matchReasons: reasonsText,
+            matchReasons: match.reasons.slice(0, 2).join(' | '),
           })
+
           await sendPDF(pdfPath, 'CV - ' + match.score + '% match: ' + raw.title + ' at ' + raw.company)
+
           await prisma.job.update({
             where: { jobId: raw.jobId },
-            data: { status: 'APPLIED', tailoredCvPath: pdfPath },
+            data: { status: 'APPLIED', tailoredCvPath: pdfPath, matchScore: match.score },
           })
+
           sent++
           console.log('[Worker] Sent (' + match.score + '%): ' + raw.title)
           await new Promise(r => setTimeout(r, 3000))
+
         } catch (err: any) {
           console.error('[Worker] Error for ' + raw.title + ': ' + err.message)
-          await new Promise(r => setTimeout(r, 3000))
+          await new Promise(r => setTimeout(r, 2000))
         }
       }
+
       console.log('[Worker] Run complete - Sent: ' + sent + ' | Skipped: ' + skipped)
       return { sent, skipped }
     }

@@ -18,11 +18,24 @@ model Job {
   status          JobStatus @default(FOUND)
   tailoredCvPath  String?
   coverLetterPath String?
+  matchScore      Int?
   appliedAt       DateTime?
   emailSentAt     DateTime?
   errorMessage    String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model CvProfile {
+  id              String   @id @default(cuid())
+  skills          String[]
+  keywords        String[]
+  experienceLevel String
+  yearsExperience Int
+  domains         String[]
+  rawAnalysis     String   @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 enum JobStatus {
