@@ -40,6 +40,11 @@ export function startWorker(): Worker {
             update: {},
           })
 
+          const existingJob = await prisma.job.findUnique({ where: { jobId: raw.jobId } })
+          if (existingJob && existingJob.status === 'APPLIED') {
+            console.log('[Worker] Already sent: ' + raw.title)
+            continue
+          }
           const match = await scoreJobLocally(raw.title, raw.description)
 
           if (!match.shouldApply || match.score < MIN_MATCH_SCORE) {
@@ -96,3 +101,4 @@ export function startWorker(): Worker {
   worker.on('failed', (job, err) => console.error('[Worker] Failed: ' + (job && job.name) + ' - ' + err.message))
   return worker
 }
+
