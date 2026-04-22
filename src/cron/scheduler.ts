@@ -4,7 +4,9 @@ import { jobQueue, JOBS } from '../queue/queues'
 import { sendDailySummary } from '../notifier/telegram'
 import { prisma } from '../db/client'
 
-const SCHEDULE = process.env.CRON_SCHEDULE || '0 */6 * * *'
+const SCHEDULE = process.env.CRON_SCHEDULE || '0 * * * *'
+const MIN_JOBS = 5
+const MAX_JOBS = 8
 
 export function startScheduler(): void {
   console.log('[Scheduler] Schedule: ' + SCHEDULE)
@@ -18,12 +20,21 @@ async function runPipeline(): Promise<void> {
   const now = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })
   console.log('[Scheduler] ===== RUN @ ' + now + ' ======')
   try {
-    const jobs = await searchAllJobs()
-    if (!jobs.length) {
+    const allJobs = await searchAllJobs()
+
+    if (!allJobs.length) {
       console.log('[Scheduler] No new jobs found.')
       return
     }
-    console.log('[Scheduler] Found ' + jobs.length + ' new jobs')
+
+    const jobs = allJobs.slice(0, MAX_JOBS)
+
+    if (jobs.length < MIN_JOBS) {
+      console.log('[Scheduler] Only ' + jobs.length + ' jobs found (min: ' + MIN_JOBS + ') — sending anyway')
+    } else {
+      console.log('[Scheduler] Sending ' + jobs.length + ' jobs (capped at ' + MAX_JOBS + ')')
+    }
+
     await jobQueue.add(JOBS.SEARCH_JOBS, { jobs })
   } catch (err: any) {
     console.error('[Scheduler] Error:', err.message)
@@ -36,6 +47,6 @@ async function sendSummary(): Promise<void> {
   const found = await prisma.job.count({ where: { createdAt: { gte: today } } })
   await sendDailySummary({
     found,
-    platforms: ['Indeed', 'Jobberman', 'MyJobMag'],
+    platforms: ['Remotive', 'Arbeitnow', 'Himalayas', 'RemoteOK', 'Jobicy', 'LinkedIn'],
   })
 }

@@ -6,65 +6,55 @@ export interface MatchResult {
   shouldApply: boolean
 }
 
-const HARDCODED_SKILLS = [
-  'react', 'next.js', 'nextjs', 'node', 'node.js', 'nodejs',
-  'typescript', 'javascript', 'python', 'fastify', 'nestjs',
-  'postgresql', 'postgres', 'supabase', 'redis', 'docker',
-  'tailwind', 'html', 'css', 'rest', 'api', 'git', 'vercel',
-  'railway', 'fullstack', 'full stack', 'full-stack', 'frontend',
-  'front-end', 'backend', 'back-end', 'web developer', 'software engineer',
-  'software developer', 'engineer', 'developer'
-]
+const MY_SKILLS = ['react', 'next', 'node', 'typescript', 'javascript', 'python',
+  'fastify', 'nestjs', 'postgres', 'supabase', 'redis', 'docker', 'tailwind',
+  'html', 'css', 'api', 'git', 'vercel', 'fullstack', 'full-stack', 'full stack']
 
-const HARDCODED_KEYWORDS = [
-  'full-stack', 'full stack', 'fullstack', 'frontend', 'front end',
-  'react', 'node', 'javascript', 'typescript', 'python', 'web',
-  'software', 'developer', 'engineer', 'remote', 'junior', 'mid',
-  'senior', 'intern', 'graduate', 'associate'
-]
+const GOOD_TITLES = ['full stack', 'fullstack', 'full-stack', 'frontend', 'front end',
+  'front-end', 'react', 'node', 'javascript', 'typescript', 'python', 'software engineer',
+  'software developer', 'web developer', 'backend', 'back end']
+
+const BAD_TITLES = ['manager', 'sales', 'marketing', 'accountant', 'hr ', 'recruiter',
+  'designer', 'devops', 'data scientist', 'mobile', 'ios', 'android', 'java developer',
+  'php developer', '.net developer', 'ruby', 'c++ ', 'c# ']
 
 export async function scoreJobLocally(jobTitle: string, jobDescription: string): Promise<MatchResult> {
-  const text = (jobTitle + ' ' + jobDescription).toLowerCase()
   const titleLower = jobTitle.toLowerCase()
+  const descLower = jobDescription.toLowerCase()
+  const fullText = titleLower + ' ' + descLower
   const reasons: string[] = []
   let score = 0
 
-  const skillMatches = HARDCODED_SKILLS.filter((s: string) => text.includes(s.toLowerCase()))
-  const skillScore = Math.min(50, skillMatches.length * 5)
+  const isBadTitle = BAD_TITLES.some(w => titleLower.includes(w))
+  if (isBadTitle) {
+    console.log('[Scorer] 0% (filtered) — ' + jobTitle)
+    return { score: 0, reasons: ['Non-relevant role'], shouldApply: false }
+  }
+
+  const titleMatches = GOOD_TITLES.filter(t => titleLower.includes(t))
+  if (titleMatches.length > 0) {
+    score += 40
+    reasons.push('Title: ' + titleMatches.slice(0, 2).join(', '))
+  }
+
+  const skillMatches = MY_SKILLS.filter(s => fullText.includes(s))
+  const skillScore = Math.min(40, skillMatches.length * 8)
   score += skillScore
   if (skillMatches.length > 0) {
-    reasons.push('Skills: ' + skillMatches.slice(0, 4).join(', '))
+    reasons.push('Skills: ' + skillMatches.slice(0, 3).join(', '))
   }
 
-  const keywordMatches = HARDCODED_KEYWORDS.filter((k: string) => titleLower.includes(k.toLowerCase()))
-  const keywordScore = Math.min(30, keywordMatches.length * 10)
-  score += keywordScore
-  if (keywordMatches.length > 0) {
-    reasons.push('Title match: ' + keywordMatches.slice(0, 2).join(', '))
+  if (fullText.includes('remote')) {
+    score += 10
+    reasons.push('Remote position')
   }
 
-  const domainWords = ['fintech', 'finance', 'ecommerce', 'e-commerce', 'saas', 'startup', 'tech', 'ai', 'platform']
-  const domainMatches = domainWords.filter((d: string) => text.includes(d))
-  if (domainMatches.length > 0) {
-    score += 20
-    reasons.push('Domain: ' + domainMatches[0])
-  }
-
-  const excludeWords = ['manager', 'sales', 'marketing', 'accountant', 'finance manager', 'hr ', 'recruiter', 'designer']
-  const isIrrelevant = excludeWords.some((w: string) => titleLower.includes(w))
-  if (isIrrelevant) {
-    score = Math.min(score, 30)
-    reasons.push('Non-tech role filtered')
-  }
+  if (titleLower.includes('senior') || titleLower.includes('lead')) score -= 10
+  if (titleLower.includes('junior') || titleLower.includes('intern') || titleLower.includes('graduate') || titleLower.includes('fresher')) score += 5
 
   score = Math.min(100, Math.max(0, score))
-
   const minScore = Number(process.env.MIN_MATCH_SCORE) || 55
   console.log('[Scorer] ' + score + '% — ' + jobTitle)
 
-  return {
-    score,
-    reasons,
-    shouldApply: score >= minScore,
-  }
+  return { score, reasons, shouldApply: score >= minScore }
 }
