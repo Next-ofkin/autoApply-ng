@@ -1,41 +1,143 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  password       String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  location       String
+  jobDescription String
+  fullName       String
+  cvProfile      CvProfile?     @relation(fields: [cvProfileId], references: [id])
+  cvProfileId    String?
+  jobs           Job[]
+  subscriptions  Subscription[]
+
+  @@index([email])
+  @@index([fullName])
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  tier      Tier?    @relation(fields: [tierId], references: [id])
+  tierId    String?
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
+
+  @@index([userId])
+  @@index([tierId])
+}
+
+model Tier {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  features      Feature[]
+  subscriptions Subscription[]
+}
+
+model Feature {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tier      Tier?    @relation(fields: [tierId], references: [id])
+  tierId    String?
 }
 
 model Job {
-  id              String    @id @default(cuid())
-  jobId           String    @unique
-  title           String
-  company         String
-  location        String
-  applyUrl        String
-  description     String    @db.Text
-  status          JobStatus @default(FOUND)
+  id               String          @id @default(cuid())
+  jobId            String          @unique
+  title            String
+  company          String
+  location         String
+  applyUrl         String
+  description      String          @db.Text
+  status           JobStatus       @default(FOUND)
+  appliedAt        DateTime?
+  emailSentAt      DateTime?
+  errorMessage     String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  user             User?           @relation(fields: [userId], references: [id])
+  userId           String?
+  analysisResult   AnalysisResult? @relation(fields: [analysisResultId], references: [id])
+  analysisResultId String?
+
+  @@index([status])
+}
+
+model AnalysisResult {
+  id              String   @id @default(cuid())
   tailoredCvPath  String?
   coverLetterPath String?
-  matchScore      Int?
-  appliedAt       DateTime?
-  emailSentAt     DateTime?
-  errorMessage    String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  matchScore      Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  jobs            Job[]
+
+  @@index([matchScore])
 }
 
 model CvProfile {
-  id              String   @id @default(cuid())
-  skills          String[]
-  keywords        String[]
-  experienceLevel String
+  id              String    @id @default(cuid())
+  skills          Skill[]
+  keywords        Keyword[]
   yearsExperience Int
-  domains         String[]
-  rawAnalysis     String   @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  domains         Domain[]
+  rawAnalysis     String    @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  users           User[]
+
+  @@index([yearsExperience])
+}
+
+model Skill {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  cvProfile   CvProfile? @relation(fields: [cvProfileId], references: [id])
+  cvProfileId String?
+
+  @@index([name])
+}
+
+model Keyword {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  cvProfile   CvProfile? @relation(fields: [cvProfileId], references: [id])
+  cvProfileId String?
+
+  @@index([name])
+}
+
+model Domain {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  cvProfile   CvProfile? @relation(fields: [cvProfileId], references: [id])
+  cvProfileId String?
+
+  @@index([name])
 }
 
 enum JobStatus {
